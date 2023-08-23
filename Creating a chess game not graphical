@@ -1,0 +1,168 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+public class ChessGame {
+    private Board board;
+    private Player whitePlayer;
+    private Player blackPlayer;
+    private Player currentPlayer;
+
+    public ChessGame() {
+        board = new Board();
+        whitePlayer = new Player(Color.WHITE);
+        blackPlayer = new Player(Color.BLACK);
+        currentPlayer = whitePlayer;
+    }
+
+    public boolean movePiece(Position start, Position end) {
+        Piece piece = board.getPiece(start);
+        if (piece == null || piece.getColor() != currentPlayer.getColor()) {
+            return false;
+        }
+
+        List<Position> validMoves = piece.getValidMoves(board);
+        if (!validMoves.contains(end)) {
+            return false;
+        }
+
+        board.movePiece(start, end);
+        currentPlayer = (currentPlayer == whitePlayer) ? blackPlayer : whitePlayer;
+        return true;
+    }
+
+    public boolean isCheckmate() {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = board.getPiece(new Position(i, j));
+                if (piece != null && piece.getColor() == currentPlayer.getColor()) {
+                    List<Position> validMoves = piece.getValidMoves(board);
+                    for (Position move : validMoves) {
+                        Board copyBoard = new Board(board);
+                        copyBoard.movePiece(new Position(i, j), move);
+                        if (!copyBoard.isCheck(currentPlayer.getColor())) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static void main(String[] args) {
+        ChessGame game = new ChessGame();
+        Scanner scanner = new Scanner(System.in);
+
+        while (!game.isCheckmate()) {
+            System.out.println(game.board); // Print the board
+            System.out.println("Enter move (e.g. e2 e4): ");
+            String input = scanner.nextLine();
+            String[] parts = input.split(" ");
+            Position start = parsePosition(parts[0]);
+            Position end = parsePosition(parts[1]);
+
+            if (!game.movePiece(start, end)) {
+                System.out.println("Invalid move!");
+            }
+        }
+
+        System.out.println("Checkmate!");
+    }
+
+    private static Position parsePosition(String input) {
+        int x = 8 - (input.charAt(1) - '1');
+        int y = input.charAt(0) - 'a';
+        return new Position(x, y);
+    }
+}
+class Board {
+    private Piece[][] board;
+    private Player whitePlayer;
+    private Player blackPlayer;
+
+    public Board() {
+        board = new Piece[8][8];
+        setupPieces();
+
+        King whiteKing = new King(Color.WHITE, new Position(7, 4));
+        King blackKing = new King(Color.BLACK, new Position(0, 4));
+
+        whitePlayer = new Player(Color.WHITE);
+        blackPlayer = new Player(Color.BLACK);
+
+        whitePlayer.setKing(whiteKing);
+        blackPlayer.setKing(blackKing);
+
+        board[7][4] = whiteKing;
+        board[0][4] = blackKing;
+    }
+
+    public Board(Board other) {
+        this.board = new Piece[8][8];
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = other.board[i][j];
+                if (piece != null) {
+                    this.board[i][j] = createPieceCopy(piece);
+                }
+            }
+        }
+    }
+
+    private Piece createPieceCopy(Piece piece) {
+        if (piece instanceof Pawn) {
+            return new Pawn((Pawn) piece);
+        } else if (piece instanceof Rook) {
+            return new Rook((Rook) piece);
+        } else if (piece instanceof Knight) {
+            return new Knight((Knight) piece);
+        } else if (piece instanceof Bishop) {
+            return new Bishop((Bishop) piece);
+        } else if (piece instanceof Queen) {
+            return new Queen((Queen) piece);
+        } else if (piece instanceof King) {
+            return new King((King) piece);
+        } else {
+            return null;
+        }
+    }
+
+
+    public Piece getPiece(Position position) {
+        return board[position.getX()][position.getY()];
+    }
+
+    public void movePiece(Position start, Position end) {
+        Piece piece = getPiece(start);
+        board[end.getX()][end.getY()] = piece;
+        board[start.getX()][start.getY()] = null;
+    }
+
+    public boolean isCheck(Color color) {
+        Position kingPosition = findKing(color);
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = board[i][j];
+                if (piece != null && piece.getColor() != color) {
+                    List<Position> validMoves = piece.getValidMoves(this);
+                    if (validMoves.contains(kingPosition)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private Position findKing(Color color) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = board[i][j];
+                if (piece instanceof King && piece.getColor() == color) {
+                    return new Position(i, j);
+                }
+            }
+        }
+        return null;
+    }
